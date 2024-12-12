@@ -19,24 +19,32 @@ def add_item():
         st.session_state.participants.append(item)
         st.session_state.new_item = ""  # Limpiar el campo de entrada
 
-# Asignar partidos
-def asignar_partidos(equipos_bombo, otros_bombos):
-    for equipo in equipos_bombo:
-        # Partidos contra 2 equipos de su mismo bombo (1 casa, 1 fuera)
-        mismos_bombo = [e for e in equipos_bombo if e != equipo]
-        vs_mismos_bombo = random.sample(mismos_bombo, 2)
-        partidos.loc[equipo, vs_mismos_bombo[0]] = "H"  # En casa
-        partidos.loc[vs_mismos_bombo[0], equipo] = "A"  # Fuera
-        partidos.loc[equipo, vs_mismos_bombo[1]] = "A"  # Fuera
-        partidos.loc[vs_mismos_bombo[1], equipo] = "H"  # En casa
+# Función para generar los cruces
+def generar_cruces(bombos):
+    # Inicializar una matriz 12x12 de partidos (sin partidos iniciales)
+    matriz_cruces = pd.DataFrame([[None]*12 for _ in range(12)], columns=st.session_state.participants, index=st.session_state.participants)
 
-        # Partidos contra equipos de otros bombos (1 casa, 1 fuera por bombo)
-        for otro_bombo in otros_bombos:
-            vs_otro_bombo = random.sample(otro_bombo, 2)
-            partidos.loc[equipo, vs_otro_bombo[0]] = "H"  # En casa
-            partidos.loc[vs_otro_bombo[0], equipo] = "A"  # Fuera
-            partidos.loc[equipo, vs_otro_bombo[1]] = "A"  # Fuera
-            partidos.loc[vs_otro_bombo[1], equipo] = "H"  # En casa
+    for b in bombos:
+        a = random.sample(b, 4)
+        for i, j in enumerate(a):
+            matriz_cruces.loc[a[i],a[(i + 1) % len(a)]] = 'X' 
+
+    comb = [(bombos[0], bombos[1]), (bombos[0], bombos[2],), (bombos[1],bombos[2])]
+
+    for b1, b2 in comb:
+        # Selección aleatoria de 4 equipos de cada bombo
+        a = random.sample(b1, 4)
+        b = random.sample(b2, 4)
+
+        # Bucle para generar y mostrar los partidos
+        for i in range(len(a)):
+            matriz_cruces.loc[a[i], b[i]] = 'X'
+            if i < len(a) - 1:
+                matriz_cruces.loc[b[i], a[i+1]] = 'X'
+            else:
+                matriz_cruces.loc[b[i],a[0]] = 'X'
+
+    return matriz_cruces
 
 st.title("TORNEO FIFA NAVIDAD - 21/12/2024")
 st.subheader("Participantes")
@@ -80,81 +88,11 @@ todos_los_equipos = b1 + b2 + b3
 # Realizar el sorteo para cada bombo
 if st.button("Sortear", disabled=not av_sort):
     # Inicializar matriz de partidos (12x12)
-    partidos = pd.DataFrame("", index=todos_los_equipos, columns=todos_los_equipos)
-    asignar_partidos(b1, [b2, b3])
-    asignar_partidos(b2, [b1, b3])
-    asignar_partidos(b3, [b1, b2])
+    # Generar la matriz de cruces
+    matriz_cruces = generar_cruces([b1,b2,b3])
 
     # Mostrar la matriz en Streamlit
-    st.title("Matriz de Partidos (Casa (H) y Fuera (A))")
-    st.write("La matriz muestra 'H' si el equipo juega en casa y 'A' si juega fuera.")
-    st.table(partidos)
+    st.title('Matriz de Partidos de la Champions')
+    st.dataframe(matriz_cruces, height=460, use_container_width=True)
 
-# Lista de 12 equipos (puedes personalizarlos)
-equipos = ['Equipo A', 'Equipo B', 'Equipo C', 'Equipo D', 'Equipo E', 'Equipo F', 'Equipo G', 'Equipo H', 
-           'Equipo I', 'Equipo J', 'Equipo K', 'Equipo L']
 
-# Dividir los equipos en 3 bombos (4 equipos por bombo)
-bombos = {
-    'Bombo 1': equipos[:4],
-    'Bombo 2': equipos[4:8],
-    'Bombo 3': equipos[8:]
-}
-
-# Función para generar los cruces
-def generar_cruces(bombos):
-    # Inicializar una matriz 12x12 de partidos (sin partidos iniciales)
-    matriz_cruces = pd.DataFrame([[None]*12 for _ in range(12)], columns=equipos, index=equipos)
-
-    for i, equipo in enumerate(equipos):
-        # Obtener el bombo del equipo actual
-        bombo_actual = None
-        for bombo, lista_equipos in bombos.items():
-            if equipo in lista_equipos:
-                bombo_actual = lista_equipos
-                break
-
-        partidos_bombo_actual = 0
-        partidos_otro_bombo = 0
-
-        # Elegir 2 equipos del mismo bombo (incluyendo el equipo actual)
-        rivales_bombo_actual = [x for x in bombo_actual if x != equipo]
-        rivales_bombo_actual = random.sample(rivales_bombo_actual, 2)
-        for rival in rivales_bombo_actual:
-            # Asignar partidos de casa y fuera
-            if random.choice([True, False]):
-                matriz_cruces.at[equipo, rival] = 'Casa'
-                matriz_cruces.at[rival, equipo] = 'Fuera'
-                partidos_bombo_actual += 1
-            else:
-                matriz_cruces.at[equipo, rival] = 'Fuera'
-                matriz_cruces.at[rival, equipo] = 'Casa'
-                partidos_bombo_actual += 1
-
-        # Ahora que tenemos los partidos dentro del mismo bombo, agregamos los partidos con equipos de otros bombos
-        # Elegir 2 equipos de cada uno de los otros bombos
-        for bombo, lista_equipos in bombos.items():
-            if bombo != bombo_actual:
-                rivales_bombo = random.sample(lista_equipos, 2)
-                for rival in rivales_bombo:
-                    if partidos_otro_bombo < 4:  # Asegurarse de que se jueguen 4 partidos contra otros bombos
-                        if random.choice([True, False]):
-                            matriz_cruces.at[equipo, rival] = 'Casa'
-                            matriz_cruces.at[rival, equipo] = 'Fuera'
-                        else:
-                            matriz_cruces.at[equipo, rival] = 'Fuera'
-                            matriz_cruces.at[rival, equipo] = 'Casa'
-                        partidos_otro_bombo += 1
-
-        # Verificar si el equipo ha jugado los 6 partidos (esto debería suceder automáticamente con las condiciones anteriores)
-        if partidos_bombo_actual + partidos_otro_bombo != 6:
-            raise ValueError(f"El equipo {equipo} no ha jugado 6 partidos.")
-
-    return matriz_cruces
-
-# Generar la matriz de cruces
-matriz_cruces = generar_cruces(bombos)
-
-# Mostrar la matriz en Streamlit
-st.title('Matriz de Partidos de la Champions')
-st.dataframe(matriz_cruces, use_container_width=True)
