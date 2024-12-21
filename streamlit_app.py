@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import random
+from itertools import combinations
 
 st.set_page_config(
     page_title="Matriz de Partidos - Champions",
@@ -11,6 +12,40 @@ st.set_page_config(
 # Lista inicial
 if "participants" not in st.session_state:
     st.session_state.participants = []
+
+# Función para verificar que ningún equipo juegue dos veces
+def es_valida(seleccion):
+    equipos_usados = set()
+    for partido in seleccion:
+        equipo1, equipo2 = partido
+        if equipo1 in equipos_usados or equipo2 in equipos_usados:
+            return False
+        equipos_usados.add(equipo1)
+        equipos_usados.add(equipo2)
+    return True
+
+def generar_jornadas(partidos):
+    jornadas = []
+
+    parts = partidos.copy()
+
+    while len(parts) > 0:
+        # Buscar todas las combinaciones de 6 partidos
+        combinaciones = combinations(parts, 6)
+
+        # Filtrar las combinaciones válidas
+        selecciones_validas = [seleccion for seleccion in combinaciones if es_valida(seleccion)]
+
+        # Mostrar los resultados
+        if selecciones_validas:
+            for seleccion in selecciones_validas[:1]:  # Mostrar solo la primera solución válida
+                jornadas.append(seleccion)
+
+        for i in seleccion:
+            parts.remove(i)
+
+    
+    return jornadas
 
 # Función para agregar elementos a la lista
 def add_item():
@@ -95,4 +130,28 @@ if st.button("Sortear", disabled=not av_sort):
     st.title('Matriz de Partidos de la Champions')
     st.dataframe(matriz_cruces, height=460, use_container_width=True)
 
+    sedes = ['PS5', 'PS4 - 24', 'PS4 - 23']
+    random.shuffle(sedes)
+
+    st.title('Distribución de sedes')
+    st.write(f'Bombo 1 vs Bombo 1: Sede {sedes[0]}')
+    st.write(f'Bombo 1 vs Bombo 2: Sede {sedes[2]}')
+    st.write(f'Bombo 1 vs Bombo 3: Sede {sedes[1]}')
+    st.write(f'Bombo 2 vs Bombo 2: Sede {sedes[1]}')
+    st.write(f'Bombo 2 vs Bombo 3: Sede {sedes[0]}')
+    st.write(f'Bombo 3 vs Bombo 3: Sede {sedes[2]}')
+
+    partidos = [
+        (fila, columna) 
+        for fila, columna in matriz_cruces.where(matriz_cruces == "X").stack().index
+    ]   
+
+    st.title('Jornadas')
+    #partidos = [('A', 'D'), ('A', 'E'), ('A', 'L'), ('B', 'C'), ('B', 'H'), ('B', 'J'), ('C', 'A'), ('C', 'G'), ('C', 'I'), ('D', 'B'), ('D', 'F'), ('D', 'K'), ('E', 'C'), ('E', 'H'), ('E', 'I'), ('F', 'A'), ('F', 'E'), ('F', 'K'), ('G', 'B'), ('G', 'F'), ('G', 'J'), ('H', 'D'), ('H', 'G'), ('H', 'L'), ('I', 'D'), ('I', 'G'), ('I', 'K'), ('J', 'A'), ('J', 'F'), ('J', 'I'), ('K', 'B'), ('K', 'H'), ('K', 'L'), ('L', 'C'), ('L', 'E'), ('L', 'J')]
+    jornadas = generar_jornadas(partidos)
+
+    for i, x in enumerate(jornadas):
+        st.subheader(f"Jornada {i+1}")
+        for j in x:
+            st.write(f'{j[0]} - {j[1]}')
 
